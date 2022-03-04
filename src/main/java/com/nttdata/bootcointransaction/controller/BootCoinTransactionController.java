@@ -37,4 +37,23 @@ public class BootCoinTransactionController {
     public Mono<BootCoinTransaction> saveSale(@RequestBody BootCoinTransaction bootCoinTransaction){
         return bootCoinTransactionService.saveSale(bootCoinTransaction);
     }
+
+    @PutMapping("/update/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<BootCoinTransaction> updateTransaction(@RequestBody BootCoinTransaction bootCoinTransaction, String id){
+        return bootCoinTransactionService.update(bootCoinTransaction, id);
+    }
+
+    @PutMapping("/approve/{idTransaction}")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<BootCoinTransaction> approveTransaction(@PathVariable String idTransaction, @RequestBody BootCoinTransaction bootCoinTransaction){
+        return bootCoinTransactionService.approveTransaction(idTransaction, bootCoinTransaction);
+    }
+
+    @GetMapping("/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<BootCoinTransaction> getById(@PathVariable String id){
+        System.out.println("Buscar por id: "+ id);
+        return bootCoinTransactionService.getById(id);
+    }
 }

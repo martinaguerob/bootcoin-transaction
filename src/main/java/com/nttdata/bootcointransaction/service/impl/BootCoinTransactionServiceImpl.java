@@ -48,6 +48,11 @@ public class BootCoinTransactionServiceImpl implements BootCoinTransactionServic
     }
 
     @Override
+    public Mono<BootCoinTransaction> getById(String id) {
+        return bootCoinTransactionRepository.findById(id);
+    }
+
+    @Override
     public Mono<BootCoinTransaction> saveBuysBank(BootCoinTransaction entity) {
         System.out.println("Guardar:" +entity.getTypeTransaction());
         Mono<BootCoin>getBootcoin = webClientConfig.getBootCoinByServiceType("BuysBank");
@@ -76,6 +81,7 @@ public class BootCoinTransactionServiceImpl implements BootCoinTransactionServic
                 });
     }
 
+
     @Override
     public Mono<BootCoinTransaction> saveSale(BootCoinTransaction entity) {
         System.out.println("Guardar:" +entity.getTypeTransaction());
@@ -90,29 +96,34 @@ public class BootCoinTransactionServiceImpl implements BootCoinTransactionServic
                 });
     }
 
+    //El usuario aprueba la transacción
     @Override
-    public Mono<BootCoinTransaction> approveTransaction(String id, String decision) {
-        Mono<BootCoinTransaction> transaction = bootCoinTransactionRepository.findById(id);
+    public Mono<BootCoinTransaction> approveTransaction(String idTransaction, BootCoinTransaction entity) {
+        Mono<BootCoinTransaction> transaction = bootCoinTransactionRepository.findById(idTransaction);
         return transaction
                 .flatMap(t -> {
-                    t.setStatus(decision);
+                    t.setStatus("Accepted");
                     int valRandom = this.rand();
                     t.setNumberTransaction(valRandom);
+                    this.approveTransactionSystem(idTransaction, t.getIdBuyer()).subscribe();
                     return bootCoinTransactionRepository.save(t);
                 });
     }
 
+    //Aprobaciones automáticas por parte del sistema
     @Override
     public Mono<BootCoinTransaction> approveTransactionSystem(String idTransaction, String idBuyer) {
         Mono<BootCoinAccount> bootCoinAccount = webClientConfig.getBootCoinAccountById(idBuyer);
         return bootCoinAccount
                 .flatMap(b->
-                                b.getNumberBankAccount().equals(null)
+                                b.getLinkedAccount().equals("yanki purse")
                                         ? validYankiAccount(b.getNumberPurse(), b.getCelphone(), idTransaction)
                                         : validBankAccount(b.getNumberPurse(), b.getNumberBankAccount(), idTransaction)
                         );
     }
 
+    //Validación en cuenta yanki respecto al saldo
+    //Se realiza la actualización de saldo en el monedero de yanki, el saldo en coins y actualiza las transacciones
     public Mono<BootCoinTransaction> validYankiAccount(Integer numberPurse, String celphone, String idTransaction){
         Mono<YankiAccount> yankiAccount = webClientConfig.getYankiAccountByNumberCelphone(celphone);
         return yankiAccount
@@ -140,9 +151,11 @@ public class BootCoinTransactionServiceImpl implements BootCoinTransactionServic
                                         });
                             });
 
-                });
+                }).switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NO_CONTENT)));
     }
 
+    //Validación en cuenta bancaria respecto al saldo
+    //Se realiza la actualización de saldo en la cuenta bancaria, el saldo en coins y actualiza las transacciones
     public Mono<BootCoinTransaction> validBankAccount(Integer numberPurse, String numberAccount, String idTransaction){
         Mono<BankAccount> bankAccount =  webClientConfig.getBankAccountByNumberAccount(numberAccount);
         return bankAccount
@@ -182,10 +195,7 @@ public class BootCoinTransactionServiceImpl implements BootCoinTransactionServic
     }
 
     public int rand(){
-        int start = 100;
-        int end = 2147483647;
-        int random = new Random().nextInt();
-        int result = start+(random*(end-start));
-        return result;
+        int random = new Random().nextInt(2147483647);
+        return random;
     }
 }
